@@ -1,0 +1,69 @@
+use prometheus::{CounterVec, GaugeVec, Opts};
+
+pub const SERVER_LABELS: &[&str] = &["server_type", "server", "server_id"];
+
+pub const LIBRARY_LABELS: &[&str] = &[
+    "server_type",
+    "server",
+    "server_id",
+    "library_type",
+    "library",
+    "library_id",
+];
+
+pub const PLAY_LABELS: &[&str] = &[
+    "server_type",
+    "server",
+    "server_id",
+    "library_type",
+    "library",
+    "library_id",
+    "media_type",
+    "title",
+    "child_title",
+    "grandchild_title",
+    "stream_type",
+    "stream_resolution",
+    "stream_file_resolution",
+    "stream_bitrate",
+    "device",
+    "device_type",
+    "user",
+    "session",
+];
+
+/// Global, always-on metrics updated directly from server refresh polling.
+/// These mirror the promauto-registered vecs in the Go exporter: they are
+/// never reset, matching the upstream behavior of leaving stale series in
+/// place once set.
+pub struct GlobalMetrics {
+    pub server_info: GaugeVec,
+    pub host_cpu_util: GaugeVec,
+    pub host_mem_util: GaugeVec,
+    pub transmit_bytes_total: CounterVec,
+}
+
+impl GlobalMetrics {
+    pub fn new() -> prometheus::Result<Self> {
+        let mut server_info_labels: Vec<&str> = SERVER_LABELS.to_vec();
+        server_info_labels.extend(["version", "platform", "platform_version"]);
+
+        Ok(Self {
+            server_info: GaugeVec::new(Opts::new("server_info", "server_info"), &server_info_labels)?,
+            host_cpu_util: GaugeVec::new(Opts::new("host_cpu_util", "host_cpu_util"), SERVER_LABELS)?,
+            host_mem_util: GaugeVec::new(Opts::new("host_mem_util", "host_mem_util"), SERVER_LABELS)?,
+            transmit_bytes_total: CounterVec::new(
+                Opts::new("transmit_bytes_total", "transmit_bytes_total"),
+                SERVER_LABELS,
+            )?,
+        })
+    }
+
+    pub fn register(&self, registry: &prometheus::Registry) -> prometheus::Result<()> {
+        registry.register(Box::new(self.server_info.clone()))?;
+        registry.register(Box::new(self.host_cpu_util.clone()))?;
+        registry.register(Box::new(self.host_mem_util.clone()))?;
+        registry.register(Box::new(self.transmit_bytes_total.clone()))?;
+        Ok(())
+    }
+}

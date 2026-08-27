@@ -1,7 +1,6 @@
 # plex-exporter
 
-A Prometheus exporter for Plex, written in Rust. It exposes the same
-metrics as [prometheus-plex-exporter](https://github.com/grafana/plexporter):
+A Prometheus exporter for Plex, written in Rust.
 
 - `server_info` — gauge, always `1`. Labeled with server type/name/id, version, platform, platform version.
 - `host_cpu_util` / `host_mem_util` — gauges. Host resource utilization (requires Plex Pass).

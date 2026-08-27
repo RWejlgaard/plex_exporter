@@ -22,6 +22,9 @@ RUN touch src/main.rs \
     && cargo build --release
 
 FROM debian:bookworm-slim AS runtime
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 RUN useradd --system --no-create-home --shell /usr/sbin/nologin plex-exporter
 COPY --from=builder /app/target/release/plex-exporter /usr/local/bin/plex-exporter
 

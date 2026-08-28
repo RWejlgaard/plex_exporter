@@ -17,7 +17,8 @@ use plex::listener;
 use plex::server::{ServerCollector, ServerState};
 use plex::sessions::{Sessions, SessionsCollector};
 
-const METRICS_ADDR: &str = "0.0.0.0:9000";
+const DEFAULT_BIND_ADDRESS: &str = "0.0.0.0";
+const DEFAULT_PORT: &str = "9000";
 
 #[derive(Clone)]
 struct AppState {
@@ -34,6 +35,10 @@ async fn main() -> anyhow::Result<()> {
         .map_err(|_| anyhow::anyhow!("PLEX_SERVER environment variable must be specified"))?;
     let plex_token = std::env::var("PLEX_TOKEN")
         .map_err(|_| anyhow::anyhow!("PLEX_TOKEN environment variable must be specified"))?;
+    let bind_address =
+        std::env::var("BIND_ADDRESS").unwrap_or_else(|_| DEFAULT_BIND_ADDRESS.to_string());
+    let port = std::env::var("PORT").unwrap_or_else(|_| DEFAULT_PORT.to_string());
+    let metrics_addr = format!("{bind_address}:{port}");
 
     let registry = Arc::new(Registry::new());
     registry.register(Box::new(prometheus::process_collector::ProcessCollector::for_self()))?;
@@ -57,8 +62,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/metrics", get(metrics_handler))
         .with_state(app_state);
 
-    let tcp_listener = tokio::net::TcpListener::bind(METRICS_ADDR).await?;
-    tracing::info!("starting metrics server on {METRICS_ADDR}");
+    let tcp_listener = tokio::net::TcpListener::bind(&metrics_addr)
+        .await
+        .map_err(|e| anyhow::anyhow!("cannot bind to {metrics_addr}: {e}"))?;
+    tracing::info!("starting metrics server on {metrics_addr}");
 
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
     let listener_task = tokio::spawn(listener::run(Arc::clone(&server), sessions, shutdown_rx));

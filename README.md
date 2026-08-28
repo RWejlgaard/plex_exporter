@@ -15,6 +15,8 @@ Configured via environment variables:
 
 - `PLEX_SERVER`: full URL of your Plex server, e.g. `http://192.168.0.10:32400`.
 - `PLEX_TOKEN`: a [Plex token](https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/) belonging to the server administrator.
+- `BIND_ADDRESS`: address the metrics server listens on. Defaults to `0.0.0.0`.
+- `PORT`: port the metrics server listens on. Defaults to `9000`.
 - `RUST_LOG`: log level filter (e.g. `info`, `debug`). Defaults to no output.
 
 ## Running

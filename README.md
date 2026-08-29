@@ -5,9 +5,13 @@ A Prometheus exporter for Plex, written in Rust.
 - `server_info` — gauge, always `1`. Labeled with server type/name/id, version, platform, platform version.
 - `host_cpu_util` / `host_mem_util` — gauges. Host resource utilization (requires Plex Pass).
 - `transmit_bytes_total` — counter. Bytes transmitted per Plex's own bandwidth statistics (requires Plex Pass).
-- `library_duration_total` / `library_storage_total` — gauges per library.
+- `library_duration_total` / `library_storage_total` / `library_items_total` — gauges per library.
 - `plays_total` / `play_seconds_total` — counters per playback session.
 - `estimated_transmit_bytes_total` — counter, estimated bytes transmitted based on active session bitrates.
+- `active_sessions` — gauge, `1` per currently active session, labeled like `plays_total` plus `state` (`playing`/`paused`/`buffering`).
+- `transcode_speed` / `transcode_throttled` — gauges per active session currently being transcoded.
+- `websocket_connected` — gauge, `1` while connected to Plex's notification websocket, `0` otherwise.
+- `websocket_reconnects_total` — counter, incremented each time the notification websocket has to be (re)established.
 
 ## Configuration
 

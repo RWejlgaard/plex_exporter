@@ -4,9 +4,9 @@ use std::time::{Duration, Instant};
 
 use prometheus::core::{Collector, Desc};
 use prometheus::proto::MetricFamily;
-use prometheus::{CounterVec, Opts};
+use prometheus::{CounterVec, GaugeVec, Opts};
 
-use crate::metrics::{PLAY_LABELS, SERVER_LABELS};
+use crate::metrics::{active_session_labels, PLAY_LABELS, SERVER_LABELS};
 use crate::plex::models::Metadata;
 use crate::plex::server::ServerState;
 
@@ -25,6 +25,15 @@ impl SessionState {
             "paused" => SessionState::Paused,
             "buffering" => SessionState::Buffering,
             _ => SessionState::Stopped,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SessionState::Playing => "playing",
+            SessionState::Paused => "paused",
+            SessionState::Buffering => "buffering",
+            SessionState::Stopped => "stopped",
         }
     }
 }
@@ -154,10 +163,15 @@ pub struct SessionsCollector {
     plays_total: CounterVec,
     play_seconds_total: CounterVec,
     estimated_transmit_bytes_total: CounterVec,
+    active_sessions: GaugeVec,
+    transcode_speed: GaugeVec,
+    transcode_throttled: GaugeVec,
 }
 
 impl SessionsCollector {
     pub fn new(sessions: Arc<Sessions>) -> prometheus::Result<Self> {
+        let active_session_labels = active_session_labels();
+
         Ok(Self {
             sessions,
             plays_total: CounterVec::new(Opts::new("plays_total", "Total play counts"), PLAY_LABELS)?,
@@ -172,6 +186,24 @@ impl SessionsCollector {
                 ),
                 SERVER_LABELS,
             )?,
+            active_sessions: GaugeVec::new(
+                Opts::new("active_sessions", "Currently active playback sessions"),
+                &active_session_labels,
+            )?,
+            transcode_speed: GaugeVec::new(
+                Opts::new(
+                    "transcode_speed",
+                    "Current transcode speed for an active session, where 1.0 is real-time",
+                ),
+                PLAY_LABELS,
+            )?,
+            transcode_throttled: GaugeVec::new(
+                Opts::new(
+                    "transcode_throttled",
+                    "Whether an active session's transcode is currently throttled",
+                ),
+                PLAY_LABELS,
+            )?,
         })
     }
 }
@@ -181,6 +213,9 @@ impl Collector for SessionsCollector {
         let mut descs = self.plays_total.desc();
         descs.extend(self.play_seconds_total.desc());
         descs.extend(self.estimated_transmit_bytes_total.desc());
+        descs.extend(self.active_sessions.desc());
+        descs.extend(self.transcode_speed.desc());
+        descs.extend(self.transcode_throttled.desc());
         descs
     }
 
@@ -188,6 +223,9 @@ impl Collector for SessionsCollector {
         self.plays_total.reset();
         self.play_seconds_total.reset();
         self.estimated_transmit_bytes_total.reset();
+        self.active_sessions.reset();
+        self.transcode_speed.reset();
+        self.transcode_throttled.reset();
 
         let server = &self.sessions.server;
         let server_name = server.name();
@@ -247,6 +285,21 @@ impl Collector for SessionsCollector {
             self.play_seconds_total
                 .with_label_values(&label_values)
                 .inc_by(total_play_time.as_secs_f64());
+
+            if let Some(state) = entry.state {
+                if state != SessionState::Stopped {
+                    let mut active_label_values = label_values.to_vec();
+                    active_label_values.push(state.as_str());
+                    self.active_sessions.with_label_values(&active_label_values).set(1.0);
+
+                    if let Some(transcode) = &entry.session.transcode_session {
+                        self.transcode_speed.with_label_values(&label_values).set(transcode.speed);
+                        self.transcode_throttled
+                            .with_label_values(&label_values)
+                            .set(if transcode.throttled { 1.0 } else { 0.0 });
+                    }
+                }
+            }
         }
 
         self.estimated_transmit_bytes_total
@@ -258,6 +311,9 @@ impl Collector for SessionsCollector {
         let mut mfs = self.plays_total.collect();
         mfs.extend(self.play_seconds_total.collect());
         mfs.extend(self.estimated_transmit_bytes_total.collect());
+        mfs.extend(self.active_sessions.collect());
+        mfs.extend(self.transcode_speed.collect());
+        mfs.extend(self.transcode_throttled.collect());
         mfs
     }
 }

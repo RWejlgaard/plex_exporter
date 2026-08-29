@@ -61,11 +61,21 @@ pub struct User {
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
+pub struct TranscodeSession {
+    #[serde(default)]
+    pub throttled: bool,
+    #[serde(default)]
+    pub speed: f64,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct Metadata {
     #[serde(default, rename = "Player")]
     pub player: Player,
     #[serde(default, rename = "User")]
     pub user: User,
+    #[serde(default, rename = "TranscodeSession")]
+    pub transcode_session: Option<TranscodeSession>,
     #[serde(default, rename = "sessionKey")]
     pub session_key: String,
     #[serde(default, rename = "ratingKey")]
@@ -201,6 +211,20 @@ pub struct ProvidersMediaContainer {
 pub struct ProvidersResponse {
     #[serde(default, rename = "MediaContainer")]
     pub media_container: ProvidersMediaContainer,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct LibraryItemsMediaContainer {
+    #[serde(default)]
+    pub size: i64,
+    #[serde(default, rename = "totalSize")]
+    pub total_size: i64,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct LibraryItemsResponse {
+    #[serde(default, rename = "MediaContainer")]
+    pub media_container: LibraryItemsMediaContainer,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

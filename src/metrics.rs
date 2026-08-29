@@ -11,6 +11,14 @@ pub const LIBRARY_LABELS: &[&str] = &[
     "library_id",
 ];
 
+/// `PLAY_LABELS` plus a `state` label, used for metrics that describe the
+/// current playback state of a session rather than an accumulated total.
+pub fn active_session_labels() -> Vec<&'static str> {
+    let mut labels = PLAY_LABELS.to_vec();
+    labels.push("state");
+    labels
+}
+
 pub const PLAY_LABELS: &[&str] = &[
     "server_type",
     "server",
@@ -41,6 +49,8 @@ pub struct GlobalMetrics {
     pub host_cpu_util: GaugeVec,
     pub host_mem_util: GaugeVec,
     pub transmit_bytes_total: CounterVec,
+    pub websocket_connected: GaugeVec,
+    pub websocket_reconnects_total: CounterVec,
 }
 
 impl GlobalMetrics {
@@ -56,6 +66,20 @@ impl GlobalMetrics {
                 Opts::new("transmit_bytes_total", "transmit_bytes_total"),
                 SERVER_LABELS,
             )?,
+            websocket_connected: GaugeVec::new(
+                Opts::new(
+                    "websocket_connected",
+                    "Whether the Plex notification websocket is currently connected",
+                ),
+                SERVER_LABELS,
+            )?,
+            websocket_reconnects_total: CounterVec::new(
+                Opts::new(
+                    "websocket_reconnects_total",
+                    "Total number of times the Plex notification websocket had to be (re)connected",
+                ),
+                SERVER_LABELS,
+            )?,
         })
     }
 
@@ -64,6 +88,8 @@ impl GlobalMetrics {
         registry.register(Box::new(self.host_cpu_util.clone()))?;
         registry.register(Box::new(self.host_mem_util.clone()))?;
         registry.register(Box::new(self.transmit_bytes_total.clone()))?;
+        registry.register(Box::new(self.websocket_connected.clone()))?;
+        registry.register(Box::new(self.websocket_reconnects_total.clone()))?;
         Ok(())
     }
 }

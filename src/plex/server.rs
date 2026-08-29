@@ -8,7 +8,9 @@ use prometheus::{GaugeVec, Opts};
 use crate::metrics::{GlobalMetrics, LIBRARY_LABELS};
 use crate::plex::client::{Client, ClientError};
 use crate::plex::library::{is_library_directory_type, Library};
-use crate::plex::models::{BandwidthResponse, ProvidersResponse, ResourcesResponse, RootResponse};
+use crate::plex::models::{
+    BandwidthResponse, LibraryItemsResponse, ProvidersResponse, ResourcesResponse, RootResponse,
+};
 
 pub struct ServerState {
     pub client: Client,
@@ -55,6 +57,10 @@ impl ServerState {
         Ok(state)
     }
 
+    pub fn metrics(&self) -> &Arc<GlobalMetrics> {
+        &self.metrics
+    }
+
     pub fn id(&self) -> String {
         self.id.read().unwrap().clone()
     }
@@ -93,7 +99,17 @@ impl ServerState {
                         library_type: dir.directory_type.clone(),
                         duration_total: dir.duration_total,
                         storage_total: dir.storage_total,
+                        item_count: 0,
                     });
+                }
+            }
+        }
+
+        for library in &mut libraries {
+            match self.library_item_count(&library.id).await {
+                Ok(count) => library.item_count = count,
+                Err(e) => {
+                    tracing::warn!(error = %e, library = %library.name, "failed to fetch library item count")
                 }
             }
         }
@@ -107,6 +123,21 @@ impl ServerState {
         self.refresh_bandwidth().await?;
 
         Ok(())
+    }
+
+    async fn library_item_count(&self, library_id: &str) -> Result<i64, ClientError> {
+        let resp: LibraryItemsResponse = self
+            .client
+            .get(&format!(
+                "/library/sections/{library_id}/all?X-Plex-Container-Start=0&X-Plex-Container-Size=0"
+            ))
+            .await?;
+        let container = resp.media_container;
+        Ok(if container.total_size > 0 {
+            container.total_size
+        } else {
+            container.size
+        })
     }
 
     async fn refresh_server_info(&self) -> Result<(), ClientError> {
@@ -198,6 +229,7 @@ pub struct ServerCollector {
     server: Arc<ServerState>,
     library_duration_total: GaugeVec,
     library_storage_total: GaugeVec,
+    library_items_total: GaugeVec,
 }
 
 impl ServerCollector {
@@ -212,6 +244,10 @@ impl ServerCollector {
                 Opts::new("library_storage_total", "Total storage size of a library in Bytes"),
                 LIBRARY_LABELS,
             )?,
+            library_items_total: GaugeVec::new(
+                Opts::new("library_items_total", "Total number of items in a library"),
+                LIBRARY_LABELS,
+            )?,
         })
     }
 }
@@ -220,12 +256,14 @@ impl Collector for ServerCollector {
     fn desc(&self) -> Vec<&Desc> {
         let mut descs = self.library_duration_total.desc();
         descs.extend(self.library_storage_total.desc());
+        descs.extend(self.library_items_total.desc());
         descs
     }
 
     fn collect(&self) -> Vec<MetricFamily> {
         self.library_duration_total.reset();
         self.library_storage_total.reset();
+        self.library_items_total.reset();
 
         let server_name = self.server.name();
         let server_id = self.server.id();
@@ -245,10 +283,14 @@ impl Collector for ServerCollector {
             self.library_storage_total
                 .with_label_values(&label_values)
                 .set(library.storage_total as f64);
+            self.library_items_total
+                .with_label_values(&label_values)
+                .set(library.item_count as f64);
         }
 
         let mut mfs = self.library_duration_total.collect();
         mfs.extend(self.library_storage_total.collect());
+        mfs.extend(self.library_items_total.collect());
         mfs
     }
 }

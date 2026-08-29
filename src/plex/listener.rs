@@ -16,13 +16,26 @@ use crate::plex::sessions::{Sessions, SessionState};
 /// playback state changes into `Sessions`. Reconnects with a fixed delay on
 /// error or unexpected disconnect, until `shutdown` fires.
 pub async fn run(server: Arc<ServerState>, sessions: Arc<Sessions>, mut shutdown: watch::Receiver<bool>) {
+    let metrics = Arc::clone(server.metrics());
+    let name = server.name();
+    let id = server.id();
+    let label_values = ["plex", name.as_str(), id.as_str()];
+
+    metrics.websocket_connected.with_label_values(&label_values).set(0.0);
+
+    let mut first_attempt = true;
     loop {
         if *shutdown.borrow() {
             return;
         }
 
+        if !first_attempt {
+            metrics.websocket_reconnects_total.with_label_values(&label_values).inc();
+        }
+        first_attempt = false;
+
         tokio::select! {
-            result = connect_and_listen(&server, &sessions) => {
+            result = connect_and_listen(&server, &sessions, &metrics, &label_values) => {
                 match result {
                     Ok(()) => tracing::info!("plex websocket closed"),
                     Err(e) => tracing::error!(error = %e, "plex websocket error, reconnecting"),
@@ -31,6 +44,8 @@ pub async fn run(server: Arc<ServerState>, sessions: Arc<Sessions>, mut shutdown
             _ = shutdown.changed() => return,
         }
 
+        metrics.websocket_connected.with_label_values(&label_values).set(0.0);
+
         tokio::select! {
             _ = tokio::time::sleep(Duration::from_secs(5)) => {}
             _ = shutdown.changed() => return,
@@ -38,7 +53,12 @@ pub async fn run(server: Arc<ServerState>, sessions: Arc<Sessions>, mut shutdown
     }
 }
 
-async fn connect_and_listen(server: &Arc<ServerState>, sessions: &Arc<Sessions>) -> anyhow::Result<()> {
+async fn connect_and_listen(
+    server: &Arc<ServerState>,
+    sessions: &Arc<Sessions>,
+    metrics: &crate::metrics::GlobalMetrics,
+    label_values: &[&str; 3],
+) -> anyhow::Result<()> {
     let base_url = &server.client.base_url;
     let ws_scheme = if base_url.scheme() == "https" { "wss" } else { "ws" };
     let host = base_url
@@ -55,6 +75,7 @@ async fn connect_and_listen(server: &Arc<ServerState>, sessions: &Arc<Sessions>)
 
     let (ws_stream, _) = connect_async(request).await?;
     tracing::info!("connected to plex websocket notifications");
+    metrics.websocket_connected.with_label_values(label_values).set(1.0);
 
     let (mut write, mut read) = ws_stream.split();
     let mut keepalive = tokio::time::interval(Duration::from_secs(1));

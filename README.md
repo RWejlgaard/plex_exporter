@@ -2,16 +2,25 @@
 
 A Prometheus exporter for Plex, written in Rust.
 
-- `server_info` — gauge, always `1`. Labeled with server type/name/id, version, platform, platform version.
-- `host_cpu_util` / `host_mem_util` — gauges. Host resource utilization (requires Plex Pass).
-- `transmit_bytes_total` — counter. Bytes transmitted per Plex's own bandwidth statistics (requires Plex Pass).
-- `library_duration_total` / `library_storage_total` / `library_items_total` — gauges per library.
-- `plays_total` / `play_seconds_total` — counters per playback session.
-- `estimated_transmit_bytes_total` — counter, estimated bytes transmitted based on active session bitrates.
-- `active_sessions` — gauge, `1` per currently active session, labeled like `plays_total` plus `state` (`playing`/`paused`/`buffering`).
-- `transcode_speed` / `transcode_throttled` — gauges per active session currently being transcoded.
-- `websocket_connected` — gauge, `1` while connected to Plex's notification websocket, `0` otherwise.
-- `websocket_reconnects_total` — counter, incremented each time the notification websocket has to be (re)established.
+## Metrics
+
+| Metric | Type | Description |
+| --- | --- | --- |
+| `server_info` | gauge | Always `1`. Labeled with server type/name/id, version, platform, platform version. |
+| `host_cpu_util` | gauge | Host CPU utilization (requires Plex Pass). |
+| `host_mem_util` | gauge | Host memory utilization (requires Plex Pass). |
+| `transmit_bytes_total` | counter | Bytes transmitted per Plex's own bandwidth statistics (requires Plex Pass). |
+| `library_duration_total` | gauge | Total duration of a library, per library. |
+| `library_storage_total` | gauge | Total storage size of a library, per library. |
+| `library_items_total` | gauge | Total number of items in a library, per library. |
+| `plays_total` | counter | Total play count, per playback session. |
+| `play_seconds_total` | counter | Total play time, per playback session. |
+| `estimated_transmit_bytes_total` | counter | Estimated bytes transmitted, based on active session bitrates. |
+| `active_sessions` | gauge | `1` per currently active session, labeled like `plays_total` plus `state` (`playing`/`paused`/`buffering`). |
+| `transcode_speed` | gauge | Current transcode speed for an active session, where `1.0` is real-time. |
+| `transcode_throttled` | gauge | Whether an active session's transcode is currently throttled. |
+| `websocket_connected` | gauge | `1` while connected to Plex's notification websocket, `0` otherwise. |
+| `websocket_reconnects_total` | counter | Incremented each time the notification websocket has to be (re)established. |
 
 ## Configuration
 
@@ -31,7 +40,43 @@ PLEX_SERVER=http://192.168.0.10:32400 PLEX_TOKEN=... cargo run --release
 
 Metrics are served on `:9000/metrics`.
 
-## Design notes
+## How it works
+
+On startup the exporter does an initial fetch of server/library state, then
+runs two things concurrently for as long as the process is alive: a polling
+loop against Plex's REST API, and a persistent connection to Plex's
+notification websocket for playback events. Both feed in-memory state that
+is turned into Prometheus metrics on demand whenever `/metrics` is scraped.
+
+```mermaid
+flowchart LR
+    subgraph plex["Plex Media Server"]
+        REST["REST API"]
+        WS["Notification WebSocket"]
+    end
+
+    subgraph exporter["plex-exporter"]
+        Refresh["Background refresh loop\n(every 5s)"]
+        Listener["Websocket listener"]
+        ServerState[("Server & library state")]
+        Sessions[("Session state")]
+        Collectors["ServerCollector +\nSessionsCollector"]
+        HTTP["/metrics endpoint"]
+    end
+
+    Prometheus["Prometheus"]
+
+    REST -->|"server info, libraries,\nCPU/mem, bandwidth"| Refresh
+    Refresh --> ServerState
+    WS -->|"playback state\nnotifications"| Listener
+    Listener -->|"session & media details"| REST
+    Listener --> Sessions
+
+    ServerState --> Collectors
+    Sessions --> Collectors
+    Collectors --> HTTP
+    Prometheus -->|"scrape"| HTTP
+```
 
 Library and session metrics are recomputed from current state on every
 scrape via a custom `prometheus::core::Collector`, so stale libraries and

@@ -6,21 +6,21 @@ A Prometheus exporter for Plex, written in Rust.
 
 | Metric | Type | Description |
 | --- | --- | --- |
-| `server_info` | gauge | Always `1`. Labeled with server type/name/id, version, platform, platform version. |
-| `host_cpu_util` | gauge | Host CPU utilization (requires Plex Pass). |
-| `host_mem_util` | gauge | Host memory utilization (requires Plex Pass). |
-| `transmit_bytes_total` | counter | Bytes transmitted per Plex's own bandwidth statistics (requires Plex Pass). |
-| `library_duration_total` | gauge | Total duration of a library, per library. |
-| `library_storage_total` | gauge | Total storage size of a library, per library. |
-| `library_items_total` | gauge | Total number of items in a library, per library. |
-| `plays_total` | counter | Total play count, per playback session. |
-| `play_seconds_total` | counter | Total play time, per playback session. |
-| `estimated_transmit_bytes_total` | counter | Estimated bytes transmitted, based on active session bitrates. |
-| `active_sessions` | gauge | `1` per currently active session, labeled like `plays_total` plus `state` (`playing`/`paused`/`buffering`). |
-| `transcode_speed` | gauge | Current transcode speed for an active session, where `1.0` is real-time. |
-| `transcode_throttled` | gauge | Whether an active session's transcode is currently throttled. |
-| `websocket_connected` | gauge | `1` while connected to Plex's notification websocket, `0` otherwise. |
-| `websocket_reconnects_total` | counter | Incremented each time the notification websocket has to be (re)established. |
+| `plex_server_info` | gauge | Always `1`. Labeled with server type/name/id, version, platform, platform version. |
+| `plex_host_cpu_util` | gauge | Host CPU utilization (requires Plex Pass). |
+| `plex_host_mem_util` | gauge | Host memory utilization (requires Plex Pass). |
+| `plex_transmit_bytes_total` | counter | Bytes transmitted per Plex's own bandwidth statistics (requires Plex Pass). |
+| `plex_library_duration_total` | gauge | Total duration of a library, per library. |
+| `plex_library_storage_total` | gauge | Total storage size of a library, per library. |
+| `plex_library_items_total` | gauge | Total number of items in a library, per library. |
+| `plex_plays_total` | counter | Total play count, per playback session. |
+| `plex_play_seconds_total` | counter | Total play time, per playback session. |
+| `plex_estimated_transmit_bytes_total` | counter | Estimated bytes transmitted, based on active session bitrates. |
+| `plex_active_sessions` | gauge | `1` per currently active session, labeled like `plex_plays_total` plus `state` (`playing`/`paused`/`buffering`). |
+| `plex_transcode_speed` | gauge | Current transcode speed for an active session, where `1.0` is real-time. |
+| `plex_transcode_throttled` | gauge | Whether an active session's transcode is currently throttled. |
+| `plex_websocket_connected` | gauge | `1` while connected to Plex's notification websocket, `0` otherwise. |
+| `plex_websocket_reconnects_total` | counter | Incremented each time the notification websocket has to be (re)established. |
 
 ## Configuration
 

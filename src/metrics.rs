@@ -59,23 +59,23 @@ impl GlobalMetrics {
         server_info_labels.extend(["version", "platform", "platform_version"]);
 
         Ok(Self {
-            server_info: GaugeVec::new(Opts::new("server_info", "server_info"), &server_info_labels)?,
-            host_cpu_util: GaugeVec::new(Opts::new("host_cpu_util", "host_cpu_util"), SERVER_LABELS)?,
-            host_mem_util: GaugeVec::new(Opts::new("host_mem_util", "host_mem_util"), SERVER_LABELS)?,
+            server_info: GaugeVec::new(Opts::new("plex_server_info", "server_info"), &server_info_labels)?,
+            host_cpu_util: GaugeVec::new(Opts::new("plex_host_cpu_util", "host_cpu_util"), SERVER_LABELS)?,
+            host_mem_util: GaugeVec::new(Opts::new("plex_host_mem_util", "host_mem_util"), SERVER_LABELS)?,
             transmit_bytes_total: CounterVec::new(
-                Opts::new("transmit_bytes_total", "transmit_bytes_total"),
+                Opts::new("plex_transmit_bytes_total", "transmit_bytes_total"),
                 SERVER_LABELS,
             )?,
             websocket_connected: GaugeVec::new(
                 Opts::new(
-                    "websocket_connected",
+                    "plex_websocket_connected",
                     "Whether the Plex notification websocket is currently connected",
                 ),
                 SERVER_LABELS,
             )?,
             websocket_reconnects_total: CounterVec::new(
                 Opts::new(
-                    "websocket_reconnects_total",
+                    "plex_websocket_reconnects_total",
                     "Total number of times the Plex notification websocket had to be (re)connected",
                 ),
                 SERVER_LABELS,

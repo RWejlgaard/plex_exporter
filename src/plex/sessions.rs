@@ -174,32 +174,32 @@ impl SessionsCollector {
 
         Ok(Self {
             sessions,
-            plays_total: CounterVec::new(Opts::new("plays_total", "Total play counts"), PLAY_LABELS)?,
+            plays_total: CounterVec::new(Opts::new("plex_plays_total", "Total play counts"), PLAY_LABELS)?,
             play_seconds_total: CounterVec::new(
-                Opts::new("play_seconds_total", "Total play time per session"),
+                Opts::new("plex_play_seconds_total", "Total play time per session"),
                 PLAY_LABELS,
             )?,
             estimated_transmit_bytes_total: CounterVec::new(
                 Opts::new(
-                    "estimated_transmit_bytes_total",
+                    "plex_estimated_transmit_bytes_total",
                     "Total estimated bytes transmitted",
                 ),
                 SERVER_LABELS,
             )?,
             active_sessions: GaugeVec::new(
-                Opts::new("active_sessions", "Currently active playback sessions"),
+                Opts::new("plex_active_sessions", "Currently active playback sessions"),
                 &active_session_labels,
             )?,
             transcode_speed: GaugeVec::new(
                 Opts::new(
-                    "transcode_speed",
+                    "plex_transcode_speed",
                     "Current transcode speed for an active session, where 1.0 is real-time",
                 ),
                 PLAY_LABELS,
             )?,
             transcode_throttled: GaugeVec::new(
                 Opts::new(
-                    "transcode_throttled",
+                    "plex_transcode_throttled",
                     "Whether an active session's transcode is currently throttled",
                 ),
                 PLAY_LABELS,

@@ -237,15 +237,15 @@ impl ServerCollector {
         Ok(Self {
             server,
             library_duration_total: GaugeVec::new(
-                Opts::new("library_duration_total", "Total duration of a library in ms"),
+                Opts::new("plex_library_duration_total", "Total duration of a library in ms"),
                 LIBRARY_LABELS,
             )?,
             library_storage_total: GaugeVec::new(
-                Opts::new("library_storage_total", "Total storage size of a library in Bytes"),
+                Opts::new("plex_library_storage_total", "Total storage size of a library in Bytes"),
                 LIBRARY_LABELS,
             )?,
             library_items_total: GaugeVec::new(
-                Opts::new("library_items_total", "Total number of items in a library"),
+                Opts::new("plex_library_items_total", "Total number of items in a library"),
                 LIBRARY_LABELS,
             )?,
         })
